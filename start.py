@@ -27,6 +27,10 @@ def cleanup(line):
 
 @app.route('/title2dois', methods=['POST'])
 def title_to_dois():
+    n_total = 0
+    n_crossref = 0
+    n_mycore = 0
+    n_scopus = 0
     mode = request.form['mode']
     if mode == "upload":
         file = request.form('file')
@@ -38,11 +42,15 @@ def title_to_dois():
         "reference; DOI; Print ISSN; Online ISSN; title; score; cited-by (CrossRef); authors; title in reference?; title in MyCoRe?; PubMed ID; Scopus ID; EID; Link; cited-by (Scopus)\n")
     for line in file:
         search_term = cleanup(line)
+        n_total = n_total + 1
+        print('reading entry ' + str(n_total))
         r = requests.get(crossref_url + search_term)
+        print('requesting crossref.')
         if r.status_code == 200:
             json_data = r.json()
             status = json_data["status"]
             if status == "ok":
+                n_crossref = n_crossref + 1
                 data = json_data["message"]["items"][0]
                 title = data["title"][0]
                 authors = []
@@ -68,20 +76,24 @@ def title_to_dois():
                         crossref_response.set_electronic_issn(issn["value"])
                 url = mycore_url + "search?q=id_doi:" + doi
                 r = requests.get(url)
+                print('requesting DOI ' + doi + "in MyCoRe repository")
                 if r.status_code == 200:
                     mycore_data_response = r.text
                     mycore_xml = xmltodict.parse(mycore_data_response)
                     try:
                         found = mycore_xml['response']['result']['doc']['str']
+                        n_mycore = n_mycore + 1
                         in_mycore = True
                     except:
                         in_mycore = False
                 else:
                     in_mycore = 'MyCoRe not reachable'
                 url = scopus_url + 'abstract/citation-count?doi=' + doi + '&apiKey=' + scopus_api_key
-                print('requesting url: ' + url)
+                print('requesting DOI ' + doi + "in Scopus")
                 r = requests.get(url)
                 if r.status_code == 200:
+                    scopus_encoding = r.encoding;
+                    n_scopus = n_scopus +1
                     scopus_data = r.json()
                     document = scopus_data['citation-count-response']['document']
                     if document['pubmed_id'] is not None:
@@ -112,6 +124,15 @@ def title_to_dois():
 
                 result_line = result_line + delimiter + str(in_mycore)
                 result_line = result_line + delimiter + scopus_response.to_output(delimiter)
-                f.write("%s\n" % result_line)
+                f.write("%s\n" % result_line.encode('UTF-8'))
+            else:
+                f.write(line + ";;;;;;;;;;;;;;;")
+
+    print('For ' + n_total + ' references, ' + n_crossref + ' DOIs were found.')
+    print('From ' + n_total + ' references, ' + n_mycore + ' DOIs were found in the MyCoRe repository.')
+    print('For ' + n_total + ' references, ' + n_scopus + ' scopus entries were found.')
+    f.write('\nFor ' + n_total + ' references, ' + n_crossref + ' DOIs were found.\n')
+    f.write('\nFrom ' + n_total + ' references, ' + n_mycore + ' DOIs were found in the MyCoRe repository.\n')
+    f.write('\nFor ' + n_total + ' references, ' + n_scopus + ' scopus entries were found.\n')
     f.close()
     return "finished"

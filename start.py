@@ -36,18 +36,18 @@ def title_to_dois():
     file_output = open(location + filename + ".out", 'w')
     file_data = open(location + filename + ".data", 'w')
     file_output.write(
-        "reference; DOI; Print ISSN; Online ISSN; title; score; cited-by (CrossRef); authors; title in reference?; title in MyCoRe?; PubMed ID; Scopus ID; EID; Link; cited-by (Scopus)\n")
+        "reference; DOI; Print ISSN; Online ISSN; title; score; cited-by (CrossRef); authors; title in reference?; MyCoRe-ID; PubMed ID; Scopus ID; EID; Link; cited-by (Scopus)\n")
     file_data.write("references; CrossRef Response; Scopus Response")
     for line in file:
         line = cleanup(line)
         n_total = n_total + 1
         print('reading entry ' + str(n_total))
         r = requests.get(crossref_url + line.replace(" ", "+"))
-        print('requesting crossref with search term ' + line.replace(" ", "+"))
         if r.status_code == 200:
             crossref_data = r.json()
             status = crossref_data["status"]
             if status == "ok":
+                print('hit in crossref')
                 n_crossref += 1
                 crossref_response = CrossrefResponse()
                 crossref_response.reference = line
@@ -97,22 +97,19 @@ def title_to_dois():
                 except KeyError:
                     print("no ISSNs given")
 
-                print('requesting DOI ' + crossref_response.doi + "in MyCoRe repository")
+                print('requesting DOI ' + crossref_response.doi + " in MyCoRe repository")
                 url = mycore_url + "search?q=id_doi:" + crossref_response.doi
                 r = requests.get(url)
+                mycore_id = ""
                 if r.status_code == 200:
                     mycore_data_response = r.text
                     mycore_xml = xmltodict.parse(mycore_data_response)
                     try:
-                        found = mycore_xml['response']['result']['doc']['str']
+                        mycore_id = mycore_xml['response']['result']['doc']['str']['#text']
                         n_mycore += 1
-                        in_mycore = True
                     except KeyError:
-                        in_mycore = False
-                else:
-                    in_mycore = 'MyCoRe not reachable'
-
-                print('requesting DOI ' + crossref_response.doi + "in Scopus")
+                        print("not found in MyCoRe repository")
+                print('requesting DOI ' + crossref_response.doi + " in Scopus")
                 url = scopus_url + 'abstract/citation-count?doi=' + crossref_response.doi + '&apiKey=' + scopus_api_key
                 r = requests.get(url)
                 scopus_response = ScopusResponse()
@@ -143,10 +140,7 @@ def title_to_dois():
                         else:
                             print("Scopus: no Cited-By given")
                 delimiter = "; "
-                result_line = crossref_response.to_output(delimiter)
-
-                result_line = result_line + delimiter + str(in_mycore)
-                result_line = result_line + delimiter + scopus_response.to_output(delimiter)
+                result_line = crossref_response.to_output(delimiter) + delimiter + mycore_id + delimiter + scopus_response.to_output(delimiter)
                 file_output.write("%s\n" % result_line.encode('UTF-8'))
                 data_line = line + delimiter + str(crossref_data) + delimiter + str(scopus_data)
                 file_data.write("%s\n" % data_line.encode('UTF-8'))

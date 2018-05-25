@@ -1,3 +1,5 @@
+import re
+
 class CrossrefResponse:
 
     def __init__(self):
@@ -30,5 +32,5 @@ class CrossrefResponse:
             string += author.to_output(delimiter)
         string += "\""
         string += delimiter
-        string += str(self.reference.replace("-", "").__contains__(self.title.replace("-", "")))
+        string += str(self.reference.__contains__(re.sub('[^ a-zA-Z0-9]', '', self.title)))
         return string

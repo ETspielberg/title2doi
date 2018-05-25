@@ -5,9 +5,7 @@ class Author:
         self.affiliation = []
 
     def to_output(self, delimiter):
-        string = self.surname
-        string += delimiter + self.firstname
-        string += "(\""
+        string = self.surname + delimiter + self.firstname + "(\""
         for affil in self.affiliation:
             string += affil["name"] + delimiter
         string += "\")"

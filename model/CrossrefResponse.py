@@ -1,12 +1,13 @@
 import re
 
+
 class CrossrefResponse:
 
     def __init__(self):
         self.reference = ""
         self.doi = ""
         self.title = ""
-        self.authors = ""
+        self.authors = []
         self.score = 0
         self.cited_by = ""
         self.print_issn = ""
@@ -29,8 +30,8 @@ class CrossrefResponse:
         string += delimiter
         string += "\""
         for author in self.authors:
-            string += author.to_output(delimiter)
+            string += author.to_output()
         string += "\""
         string += delimiter
-        string += str(self.reference.__contains__(re.sub('[^ a-zA-Z0-9]', '', self.title)))
+        string += str(self.reference.lower().__contains__(re.sub('[^ a-zA-Z0-9]', '', self.title.lower())))
         return string

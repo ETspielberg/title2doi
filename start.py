@@ -47,7 +47,7 @@ def title_to_dois():
             crossref_data = r.json()
             status = crossref_data["status"]
             if status == "ok":
-                print('hit in crossref')
+                print('found hit in crossref')
                 n_crossref += 1
                 crossref_response = CrossrefResponse()
                 crossref_response.reference = line
@@ -76,6 +76,7 @@ def title_to_dois():
                 except KeyError:
                     print('no authors given')
                     authors.append(Author())
+                crossref_response.authors = authors
                 try:
                     crossref_response.doi = data["DOI"]
                 except KeyError:
@@ -109,6 +110,8 @@ def title_to_dois():
                         n_mycore += 1
                     except KeyError:
                         print("not found in MyCoRe repository")
+                    except TypeError:
+                        print("found multiple entries in MyCoRe repository")
                 print('requesting DOI ' + crossref_response.doi + " in Scopus")
                 url = scopus_url + 'abstract/citation-count?doi=' + crossref_response.doi + '&apiKey=' + scopus_api_key
                 r = requests.get(url)

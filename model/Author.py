@@ -4,9 +4,13 @@ class Author:
         self.firstname = ""
         self.affiliation = []
 
-    def to_output(self, delimiter):
-        string = self.surname + delimiter + self.firstname + "(\""
-        for affil in self.affiliation:
-            string += affil["name"] + delimiter
-        string += "\")"
+    def to_output(self):
+        string = self.surname + "," + self.firstname + " ("
+        try:
+            for affil in self.affiliation:
+                string += affil["name"].replace(";", " ")
+                string += ", "
+        except:
+            print("no affiliation given")
+        string += "), "
         return string

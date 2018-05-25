@@ -1,18 +1,14 @@
 class Author:
-    def __init__(self, surname: str, firstname: str, affiliation: list):
-        self.surname = surname
-        self.firstname = firstname
-        self.affiliation = affiliation
+    def __init__(self):
+        self.surname = ""
+        self.firstname = ""
+        self.affiliation = []
 
     def to_output(self, delimiter):
-        string = self.surname + delimiter + self.firstname + "(\""
+        string = self.surname
+        string += delimiter + self.firstname
+        string += "(\""
         for affil in self.affiliation:
-            string = string + affil["name"] + delimiter
-        string = string + "\")"
+            string += affil["name"] + delimiter
+        string += "\")"
         return string
-
-    def set_firstname(self, firstname: str):
-        self.firstname = firstname
-
-    def set_affiliation(self, affiliation: str):
-        self.affiliation = affiliation

@@ -2,6 +2,7 @@ from flask import Flask
 from flask import request
 import requests
 import xmltodict
+import re
 
 from model.Author import Author
 from model.ScopusResponse import ScopusResponse
@@ -21,8 +22,7 @@ location = app.config.get("LIBINTEL_UPLOAD_DIR") + "\\title2doi\\"
 
 
 def cleanup(line):
-    return line.replace(".", " ").replace(";", " ").replace("\"", " ").replace("\'", " ").replace("/", "") \
-        .replace(" ", "+").replace("\n", "")
+    return re.sub('[^ a-zA-Z0-9]', '', line).replace("\n", "")
 
 
 @app.route('/title2dois', methods=['POST'])
@@ -31,108 +31,131 @@ def title_to_dois():
     n_crossref = 0
     n_mycore = 0
     n_scopus = 0
-    mode = request.form['mode']
-    if mode == "upload":
-        file = request.form('file')
-    else:
-        filename = request.form['filename']
-        file = open(location + filename, "r")
-    f = open('results.txt', 'w')
-    f.write(
+    filename = request.form['filename']
+    file = open(location + filename, "r", encoding="utf8")
+    file_output = open(location + filename + ".out", 'w')
+    file_data = open(location + filename + ".data", 'w')
+    file_output.write(
         "reference; DOI; Print ISSN; Online ISSN; title; score; cited-by (CrossRef); authors; title in reference?; title in MyCoRe?; PubMed ID; Scopus ID; EID; Link; cited-by (Scopus)\n")
+    file_data.write("references; CrossRef Response; Scopus Response")
     for line in file:
-        search_term = cleanup(line)
+        line = cleanup(line)
         n_total = n_total + 1
         print('reading entry ' + str(n_total))
-        r = requests.get(crossref_url + search_term)
-        print('requesting crossref.')
+        r = requests.get(crossref_url + line.replace(" ", "+"))
+        print('requesting crossref with search term ' + line.replace(" ", "+"))
         if r.status_code == 200:
-            json_data = r.json()
-            status = json_data["status"]
+            crossref_data = r.json()
+            status = crossref_data["status"]
             if status == "ok":
-                n_crossref = n_crossref + 1
-                data = json_data["message"]["items"][0]
-                title = data["title"][0]
+                n_crossref += 1
+                crossref_response = CrossrefResponse()
+                crossref_response.reference = line
+                data = crossref_data["message"]["items"][0]
+                try:
+                    crossref_response.title = data["title"][0]
+                except KeyError:
+                    print("no title given")
                 authors = []
-                for author in data["author"]:
-                    author_object = Author(author["family"], "", [])
-                    try:
-                        author_object.set_firstname(author["given"])
-                    except KeyError:
-                        print("no given name")
-                    try:
-                        author_object.set_affiliation(author["affiliation"])
-                    except IndexError:
-                        print("no affiliation given")
-                    authors.append(author_object)
-                doi = data["DOI"]
-                cited_by = data["is-referenced-by-count"]
-                score = data["score"]
-                crossref_response = CrossrefResponse(line, doi, title, authors, score, cited_by)
-                for issn in data["issn-type"]:
-                    if issn["type"] == "print":
-                        crossref_response.set_print_issn(issn["value"])
-                    if issn["type"] == "electronic":
-                        crossref_response.set_electronic_issn(issn["value"])
-                url = mycore_url + "search?q=id_doi:" + doi
+                try:
+                    for author in data["author"]:
+                        author_object = Author()
+                        try:
+                            author_object.surname = author["family"]
+                        except KeyError:
+                            print("no family name")
+                        try:
+                            author_object.firstname = author["given"]
+                        except KeyError:
+                            print("no given name")
+                        try:
+                            author_object.affiliation = author["affiliation"]
+                        except IndexError:
+                            print("no affiliation given")
+                        authors.append(author_object)
+                except KeyError:
+                    print('no authors given')
+                    authors.append(Author())
+                try:
+                    crossref_response.doi = data["DOI"]
+                except KeyError:
+                    print("no doi given")
+                try:
+                    crossref_response.cited_by = data["is-referenced-by-count"]
+                except KeyError:
+                    print("no cioted-by given")
+                try:
+                    crossref_response.score = data["score"]
+                except KeyError:
+                    print("no score given")
+                try:
+                    for issn in data["issn-type"]:
+                        if issn["type"] == "print":
+                            crossref_response.print_issn = issn["value"]
+                        if issn["type"] == "electronic":
+                            crossref_response.electronic_issn = issn["value"]
+                except KeyError:
+                    print("no ISSNs given")
+
+                print('requesting DOI ' + crossref_response.doi + "in MyCoRe repository")
+                url = mycore_url + "search?q=id_doi:" + crossref_response.doi
                 r = requests.get(url)
-                print('requesting DOI ' + doi + "in MyCoRe repository")
                 if r.status_code == 200:
                     mycore_data_response = r.text
                     mycore_xml = xmltodict.parse(mycore_data_response)
                     try:
                         found = mycore_xml['response']['result']['doc']['str']
-                        n_mycore = n_mycore + 1
+                        n_mycore += 1
                         in_mycore = True
-                    except:
+                    except KeyError:
                         in_mycore = False
                 else:
                     in_mycore = 'MyCoRe not reachable'
-                url = scopus_url + 'abstract/citation-count?doi=' + doi + '&apiKey=' + scopus_api_key
-                print('requesting DOI ' + doi + "in Scopus")
+
+                print('requesting DOI ' + crossref_response.doi + "in Scopus")
+                url = scopus_url + 'abstract/citation-count?doi=' + crossref_response.doi + '&apiKey=' + scopus_api_key
                 r = requests.get(url)
+                scopus_response = ScopusResponse()
+                scopus_data = ""
                 if r.status_code == 200:
-                    scopus_encoding = r.encoding;
-                    n_scopus = n_scopus +1
                     scopus_data = r.json()
                     document = scopus_data['citation-count-response']['document']
-                    if document['pubmed_id'] is not None:
-                        pubmed_id = document['pubmed_id']
-                    else:
-                        pubmed_id = ""
-                    if document['dc:identifier'] is not None:
-                        scopus_id = document['dc:identifier']
-                    else:
-                        scopus_id = ""
-                    if document['eid'] is not None:
-                        eid = document['eid']
-                    else:
-                        eid = ""
-                    if document['prism:url'] is not None:
-                        url = document['prism:url']
-                    else:
-                        url = ""
-                    if document['citation-count'] is not None:
-                        cited_by_scopus = document['citation-count']
-                    else:
-                        cited_by_scopus = 0
-                    scopus_response = ScopusResponse(pubmed_id, scopus_id, eid, url, cited_by_scopus)
-                else:
-                    scopus_response = ScopusResponse("", "", "", "", 0)
+                    if document['@status'] == "found":
+                        n_scopus += 1
+                        if document['pubmed_id'] is not None:
+                            scopus_response.pubmed_id = document['pubmed_id']
+                        else:
+                            print("Scopus: no PubMed ID given")
+                        if document['dc:identifier'] is not None:
+                            scopus_response.scopus_id = document['dc:identifier']
+                        else:
+                            print("Scopus: no Scopus ID given")
+                        if document['eid'] is not None:
+                            scopus_response.eid = document['eid']
+                        else:
+                            print("Scopus: no EID given")
+                        if document['prism:url'] is not None:
+                            scopus_response.url = document['prism:url']
+                        else:
+                            print("Scopus: no URL given")
+                        if document['citation-count'] is not None:
+                            scopus_response.cited_by_scopus = document['citation-count']
+                        else:
+                            print("Scopus: no Cited-By given")
                 delimiter = "; "
-                result_line = crossref_response.to_csv_output(delimiter)
+                result_line = crossref_response.to_output(delimiter)
 
                 result_line = result_line + delimiter + str(in_mycore)
                 result_line = result_line + delimiter + scopus_response.to_output(delimiter)
-                f.write("%s\n" % result_line.encode('UTF-8'))
+                file_output.write("%s\n" % result_line.encode('UTF-8'))
+                data_line = line + delimiter + str(crossref_data) + delimiter + str(scopus_data)
+                file_data.write("%s\n" % data_line.encode('UTF-8'))
             else:
-                f.write(line + ";;;;;;;;;;;;;;;")
+                file_output.write(line + ";;;;;;;;;;;;;;;")
+                file_data.write(line + ";;")
 
-    print('For ' + n_total + ' references, ' + n_crossref + ' DOIs were found.')
-    print('From ' + n_total + ' references, ' + n_mycore + ' DOIs were found in the MyCoRe repository.')
-    print('For ' + n_total + ' references, ' + n_scopus + ' scopus entries were found.')
-    f.write('\nFor ' + n_total + ' references, ' + n_crossref + ' DOIs were found.\n')
-    f.write('\nFrom ' + n_total + ' references, ' + n_mycore + ' DOIs were found in the MyCoRe repository.\n')
-    f.write('\nFor ' + n_total + ' references, ' + n_scopus + ' scopus entries were found.\n')
-    f.close()
+    file_output.write('\nOut of ' + str(n_total) + ' references, ' + str(n_crossref) + ' DOIs were found.\n')
+    file_output.write('\nOut of ' + str(n_total) + ' references, ' + str(n_mycore) + ' DOIs were found in the MyCoRe repository.\n')
+    file_output.write('\nOut of ' + str(n_total) + ' references, ' + str(n_scopus) + ' Scopus entries were found.\n')
+    file_output.close()
     return "finished"

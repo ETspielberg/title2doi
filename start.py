@@ -125,7 +125,7 @@ def title_to_dois():
                             print("found data on CrossRef")
                             n_crossref += 1
                             data = crossref_data["message"]
-        else:
+        if not crossref_found:
             print("no DOI given, trying to resolve reference")
             line = cleanup(line)
             r = requests.get(crossref_url + line.replace(" ", "+"))
@@ -155,35 +155,34 @@ def title_to_dois():
                     print("found multiple entries in MyCoRe repository")
 
             print('requesting DOI ' + crossref_response.doi + " in Scopus")
-            # url = scopus_url + 'abstract/citation-count?doi=' + crossref_response.doi + '&apiKey=' + scopus_api_key
-            # r = requests.get(url)
+            url = scopus_url + 'abstract/citation-count?doi=' + crossref_response.doi + '&apiKey=' + scopus_api_key
+            r = requests.get(url)
             scopus_response = ScopusResponse()
-            # scopus_data = ""
-            # if r.status_code == 200:
-            #     scopus_data = r.json()
-            #     document = scopus_data['citation-count-response']['document']
-            #     if document['@status'] == "found":
-            #         n_scopus += 1
-            #         if document['pubmed_id'] is not None:
-            #             scopus_response.pubmed_id = document['pubmed_id']
-            #         else:
-            #             print("Scopus: no PubMed ID given")
-            #         if document['dc:identifier'] is not None:
-            #             scopus_response.scopus_id = document['dc:identifier']
-            #         else:
-            #             print("Scopus: no Scopus ID given")
-            #         if document['eid'] is not None:
-            #             scopus_response.eid = document['eid']
-            #         else:
-            #             print("Scopus: no EID given")
-            #         if document['prism:url'] is not None:
-            #             scopus_response.url = document['prism:url']
-            #         else:
-            #             print("Scopus: no URL given")
-            #         if document['citation-count'] is not None:
-            #             scopus_response.cited_by_scopus = document['citation-count']
-            #         else:
-            #             print("Scopus: no Cited-By given")
+            if r.status_code == 200:
+                scopus_data = r.json()
+                document = scopus_data['citation-count-response']['document']
+                if document['@status'] == "found":
+                    n_scopus += 1
+                    if document['pubmed_id'] is not None:
+                        scopus_response.pubmed_id = document['pubmed_id']
+                    else:
+                        print("Scopus: no PubMed ID given")
+                    if document['dc:identifier'] is not None:
+                        scopus_response.scopus_id = document['dc:identifier']
+                    else:
+                        print("Scopus: no Scopus ID given")
+                    if document['eid'] is not None:
+                        scopus_response.eid = document['eid']
+                    else:
+                        print("Scopus: no EID given")
+                    if document['prism:url'] is not None:
+                        scopus_response.url = document['prism:url']
+                    else:
+                        print("Scopus: no URL given")
+                    if document['citation-count'] is not None:
+                        scopus_response.cited_by_scopus = document['citation-count']
+                    else:
+                        print("Scopus: no Cited-By given")
             delimiter = "; "
             result_line = crossref_response.to_output(
                 delimiter) + delimiter + mycore_id + delimiter + scopus_response.to_output(delimiter)

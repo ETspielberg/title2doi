@@ -22,7 +22,7 @@ class CrossrefResponse:
         string += delimiter
         string += self.electronic_issn
         string += delimiter
-        string += self.title
+        string += ("\"" + self.title.replace("\n", "") + "\"")
         string += delimiter
         string += str(self.score)
         string += delimiter
@@ -30,8 +30,19 @@ class CrossrefResponse:
         string += delimiter
         string += "\""
         for author in self.authors:
-            string += author.to_output()
+            string += author.to_output().replace("\n", "")
         string += "\""
         string += delimiter
-        string += str(self.reference.lower().__contains__(re.sub('[^ a-zA-Z0-9]', '', self.title.lower())))
+
+        if self.reference.lower().__contains__("comment"):
+            has_title = self.title.__contains__("comment")
+        elif self.reference.lower().__contains__("erratum"):
+            has_title = self.title.__contains__("erratum")
+        else:
+            has_title = reference_has(self.reference, self.title)
+        string += str(has_title)
         return string
+
+
+def reference_has(reference: str, item: str) -> bool:
+    return reference.lower().__contains__(re.sub("[^ a-zA-Z0-9]", "", item.lower()))

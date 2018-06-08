@@ -19,5 +19,6 @@ SCOPUS_API_KEY = "<Scopus API Key>"
 ```
 
 ##setup
+
 Create a virtual environment, install the packages from the `requirements.txt` and run the flask application
  (in Windows: `python -m flask run`)

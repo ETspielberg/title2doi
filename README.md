@@ -18,7 +18,7 @@ SCOPUS_URL = "https://api.elsevier.com/content/"
 SCOPUS_API_KEY = "<Scopus API Key>"
 ```
 
-##setup
+## Setup
 
 Create a virtual environment, install the packages from the `requirements.txt` and run the flask application
  (in Windows: `python -m flask run`)

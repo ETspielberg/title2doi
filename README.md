@@ -9,7 +9,7 @@ Scopus is queried to retrieve the Scopus ID and actual citation counts. Results 
 
 ## Configuration
 
-Basic configuration data (CrossRef URL, Scopus URL, Scopus API key and MyCoRe repository API URL are set under ~/.libintel/config/title2dois.cfg, using `touch ~/.libintel/config/title2dois.cfg` and adding the following content:
+You could store the basic configuration data (CrossRef URL, Scopus URL, Scopus API key and MyCoRe repository API URL  in the file: `~/.libintel/config/title2dois.cfg`, by filling it with the following content (add your own Scopus API key):
 ```
 LIBINTEL_UPLOAD_DIR = "<home directory>\\.libintel\\uploads"
 CROSSREF_URL = "https://api.crossref.org/works?mailto=<E-Mail-Address>&rows=1&query="

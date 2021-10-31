@@ -1,0 +1,12 @@
+# run: conda env create --file environment.yml
+# include new packages: conda env update --file environment.yml
+name: title2doi
+channels:
+  - conda
+dependencies:
+- anaconda
+- pip
+- pip:
+   - -r dependencies.txt
+- conda:
+  - pytest=6.1.2

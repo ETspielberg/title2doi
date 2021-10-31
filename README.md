@@ -22,3 +22,10 @@ SCOPUS_API_KEY = "<Scopus API Key>"
 
 Create a virtual environment, install the packages from the `requirements.txt` and run the flask application
  (in Windows: `python -m flask run`)
+
+Or using conda:
+```
+conda env create --file environment.yml
+conda activate title2doi
+python start.py
+```

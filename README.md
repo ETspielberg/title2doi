@@ -9,7 +9,7 @@ Scopus is queried to retrieve the Scopus ID and actual citation counts. Results 
 
 ## Configuration
 
-Basic configuration data (CrossRef URL, Scopus URL, Scopus API key and MyCoRe repository API URL are set under ~/.libintel/config/title2dois.cfg:
+Basic configuration data (CrossRef URL, Scopus URL, Scopus API key and MyCoRe repository API URL are set under ~/.libintel/config/title2dois.cfg, using `touch ~/.libintel/config/title2dois.cfg` and adding the following content:
 ```
 LIBINTEL_UPLOAD_DIR = "<home directory>\\.libintel\\uploads"
 CROSSREF_URL = "https://api.crossref.org/works?mailto=<E-Mail-Address>&rows=1&query="
@@ -27,5 +27,9 @@ Or using conda:
 ```
 conda env create --file environment.yml
 conda activate title2doi
+export LIBINTEL_SETTINGS=~/.libintel/config/title2dois.cfg
+```
+then you can run the code with:
+```
 python start.py
 ```
